@@ -90,5 +90,5 @@ function onListening() {
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
 
-  new Database.connect({ CONNECTION_STRING });
+  Database.connect({ CONNECTION_STRING });
 }
