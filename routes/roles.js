@@ -6,6 +6,7 @@ const Response = require('../lib/Response');
 const CustomError = require('../lib/Error');
 const Enum = require('../config/Enum');
 const httpCodes = Enum.HTTP_CODES;
+const role_privileges = require('../config/role_privileges');
 
 router.get('/', async (req, res) => {
     try {
@@ -23,8 +24,10 @@ router.get('/', async (req, res) => {
 router.post('/add', async (req, res) => {
     const body = req.body;
     try {
-
-        if (!body.role_name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error: ", "role_name area must be filled");
+        if (!body.role_name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error!", "role_name area must be filled");
+        if (!body.permissions && !Array.isArray(body.permissions)) {
+            throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error!", '"permission" field must be filled');
+        };
 
         const role = new Role({
             role_name: body.role_name,
@@ -34,6 +37,26 @@ router.post('/add', async (req, res) => {
 
         await role.save();
 
+        // for (let i = 0; i<body.permissions.lenght; i++) {
+        //     let priv = new RolePrivileges({
+        //         role_id: role._id,
+        //         permission: body.permissions[i],
+        //         created_by: req.user?.id
+        //     })
+
+        //     await priv.save();
+        // }
+
+        const privilegesData = body.permissions.map(permissionKey => {
+            return {
+                role_id: role_id,
+                permission: permissionKey,
+                created_by: req.user?.id
+            }
+        })
+
+        await RolePrivileges.insertMany(privilegesData,{ ordered: false});
+
         res.json(Response.successResponse);
 
     } catch (err) {
@@ -42,17 +65,18 @@ router.post('/add', async (req, res) => {
     }
 })
 
-router.patch('/update', async (req, res) => { // partial update
+router.patch('/update/:id', async (req, res) => { // partial update
     const body = req.body;
+    const { id } = req.params;
     try {
 
-        if (!body._id) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error: ", "_id area must be filled");
+        if (!id) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error: ", "_id area must be filled");
         const allowedUpdates = ["role_name", "is_active"];
         let updates = {};
 
         Object.keys(body).forEach(key => {
             if (allowedUpdates.includes(key)) {
-                if (key == 'is_active' && typeof body[key] !== 'boolean') { 
+                if (key == 'is_active' && typeof body[key] !== 'boolean') {
                     return;
                 }
 
@@ -60,14 +84,37 @@ router.patch('/update', async (req, res) => { // partial update
             }
         })
 
-        if(Object.keys(updates).length === 0) {
+        if (Object.keys(updates).length === 0) {
             return res.json({
                 success: false,
                 message: 'There are no fields for update'
             })
         }
 
-        await Roles.findByIdAndUpdate(body._id , updates);
+        if (body.permission && Array.isArray(body.permission) && body.permission.length > 0) {
+            let permissions = await RolePrivileges.find({role_id: body._id});
+
+            //!!!!!!!
+            //todo tekrar bakılacak
+            let removedPermissions = permissions.filter(x => !body.permissions.include(x.permission));
+            let newPermissions = body.permissions.filter(x => permissions.map(p = p.permission).include(x))
+
+
+            const privilegesData = body.permissions.map(permissionKey => {
+            return {
+                role_id: role_id,
+                permission: permissionKey,
+                created_by: req.user?.id
+            }
+        })
+
+        await RolePrivileges.insertMany(privilegesData,{ ordered: false});
+        }
+
+        await Roles.findByIdAndUpdate(id, updates, {
+            new: true,
+            runValidator: true
+        });
 
         res.json(Response.successResponse);
 
@@ -89,9 +136,9 @@ router.delete('/delete/:id', async (req, res) => {
         if (!deletedRole) {
             throw new CustomError(Enum.HTTP_CODES.NOT_FOUND, "Not Found", "The user that you want to delete could not be found with the given ID");
         }
-        
-        res.json(Response.successResponse({ success: true}));
-        
+
+        res.json(Response.successResponse({ success: true }));
+
     } catch (error) {
         let errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code).json(errorResponse);
