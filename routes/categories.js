@@ -14,7 +14,7 @@ router.get('/', async(req, res) => {
         res.json(Response.succesResponse(categories));
     } catch (error) {
         let errorResponse = Response.errorResponse(err);
-        res.status(errorResponse.code).json(errorResponse);
+        res.status(errorResponse.code || httpCodes.INT_SERVER_ERROR).json(errorResponse);
         
     }
 })
@@ -24,7 +24,7 @@ router.post('/add', async(req, res) => {
     let body = req.body;
 
     try {
-        if(!body.name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error: Name area must be filled");
+        if(!body.name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error:",'"name" area must be filled');
 
         let category = new Categories({
             name: body.name,
@@ -45,11 +45,18 @@ router.post('/add', async(req, res) => {
 router.put('/update', async (req, res) => {
     let body = req.body;
     try {
-        if (!body._id) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error: _id area must be filled.");
-
+        if (!body._id) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error:", '"_id" area must be filled.');
+        let allowedUpdates = ["name"]; //* WhiteList
         let updates = { };
 
-        if(body.name) updates.name = body.name;
+        let counter = 0;
+        Object.keys(body).forEach(key => {
+            if (allowedUpdates.includes(key)) {
+                updates[counter] = body[key];
+                counter++;
+            }
+        });
+        
         if( typeof body.is_active === 'boolean') updates.is_active = body.is_active;
 
         await Categories.updateOne({_id: body._id}, updates);

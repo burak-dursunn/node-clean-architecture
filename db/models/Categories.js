@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const schema = mongoose.Schema({
+const schema = new mongoose.Schema({
     name: {type: String, required: true},
     is_active: { type: Boolean, default: true },
     created_by: {

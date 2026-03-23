@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const Schema = mongoose.Schema({
+const userSchema = new mongoose.Schema({
     email: { type: String, required: true },
     password: { type: String, required: true },
     is_active: { type: Boolean, default: true },
@@ -20,5 +20,5 @@ class Users extends mongoose.Model {
 
 }
 
-schema.loadClass(Users);
-modeule.exports = mongoose.model("users", schema);
+userSchema.loadClass(Users);
+module.exports = mongoose.model("users", userSchema);
