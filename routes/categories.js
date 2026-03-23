@@ -48,8 +48,7 @@ router.put('/update', async (req, res) => {
         if (!body._id) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error:", '"_id" area must be filled.');
         let allowedUpdates = ["name"]; //* WhiteList
         let updates = { };
-
-        let counter = 0;
+        
         Object.keys(body).forEach(key => {
             if (allowedUpdates.includes(key)) {
                 updates[counter] = body[key];
@@ -77,7 +76,7 @@ router.delete('/delete/:id', async (req, res) => {
         const deleting = await Categories.findByIdAndDelete(id);
         
         if (!deleting) {
-            throw new CustomError(Enum.HTTP_CODES.NOT_FOUND, "Not Found", "Silinmek istenen kategori bulunamadı.");
+            throw new CustomError(Enum.HTTP_CODES.NOT_FOUND, "Not Found", "The category you want to delete could not be found.");
         }
 
         res.json(Response.successResponse({ 
