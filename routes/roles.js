@@ -24,9 +24,9 @@ router.get('/', async (req, res) => {
 router.post('/add', async (req, res) => {
     const body = req.body;
     try {
-        if (!body.role_name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error!", "role_name area must be filled");
+        if (!body.role_name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error!", '"role_name" area must be filled');
         if (!body.permissions && !Array.isArray(body.permissions)) {
-            throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error!", '"permission" field must be filled');
+            throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error!", '"permissions" field must be an array or must be filled');
         };
 
         const role = new Role({
@@ -49,13 +49,13 @@ router.post('/add', async (req, res) => {
 
         const privilegesData = body.permissions.map(permissionKey => {
             return {
-                role_id: role_id,
+                role_id: role._id,
                 permission: permissionKey,
                 created_by: req.user?.id
             }
         })
 
-        await RolePrivileges.insertMany(privilegesData,{ ordered: false});
+        await RolePrivileges.insertMany(privilegesData,{ ordered: false });
 
         res.json(Response.successResponse);
 
@@ -85,7 +85,7 @@ router.patch('/update/:id', async (req, res) => { // partial update
         })
 
 
-        if (body.permission && Array.isArray(body.permission) && body.permission.length > 0) {
+        if (body.permission && Array.isArray(body.permissions) && body.permissions.length > 0) {
             let existingPrivileges = await RolePrivileges.find({role_id: id});
             let existinPermissionsList = existingPrivileges.map(p => p.permission);
 
@@ -111,7 +111,7 @@ router.patch('/update/:id', async (req, res) => { // partial update
             }
         }
 
-        if (Object.keys(updates).length === 0 && !body.permission) {
+        if (Object.keys(updates).length === 0 && !body.permissions) {
                 return res.json({
                     success: false,
                     message: 'There are no fields for update'
@@ -146,10 +146,19 @@ router.delete('/delete/:id', async (req, res) => {
             throw new CustomError(Enum.HTTP_CODES.NOT_FOUND, "Not Found", "The user that you want to delete could not be found with the given ID");
         }
 
+        const deletedPermissions = await RolePrivileges.deleteMany({role_id: id}); 
+        //? deleteMany function returns an object containing the count of deleted documents.
+        //? on the other hand, findByIdAndDelete returns the information of deleted item as a json
+
         res.json(Response.successResponse({ success: true }));
 
     } catch (error) {
         let errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code).json(errorResponse);
     }
+
+})
+
+router.get('/role_privileges', async (req, res) => {
+    res.json(role_privileges);
 })
