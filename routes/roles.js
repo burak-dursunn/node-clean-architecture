@@ -84,37 +84,46 @@ router.patch('/update/:id', async (req, res) => { // partial update
             }
         })
 
-        if (Object.keys(updates).length === 0) {
-            return res.json({
-                success: false,
-                message: 'There are no fields for update'
-            })
-        }
 
         if (body.permission && Array.isArray(body.permission) && body.permission.length > 0) {
-            let permissions = await RolePrivileges.find({role_id: body._id});
+            let existingPrivileges = await RolePrivileges.find({role_id: id});
+            let existinPermissionsList = existingPrivileges.map(p => p.permission);
 
-            //!!!!!!!
-            //todo tekrar bakılacak
-            let removedPermissions = permissions.filter(x => !body.permissions.include(x.permission));
-            let newPermissions = body.permissions.filter(x => permissions.map(p = p.permission).include(x))
+            //!
+            let removedPermissions = existinPermissionsList.filter(perm => !body.permission.includes(perm));
+            let newPermissions = body.permission.filter(perm => !existinPermissionsList.includes(perm));
 
-
-            const privilegesData = body.permissions.map(permissionKey => {
-            return {
-                role_id: role_id,
-                permission: permissionKey,
-                created_by: req.user?.id
+            if (removedPermissions.length > 0) {
+                await RolePrivileges.deleteMany({
+                    role_id: id,
+                    permission: { $in: removedPermissions}
+                })
             }
-        })
 
-        await RolePrivileges.insertMany(privilegesData,{ ordered: false});
+            if (newPermissions.length > 0) {
+                let privilegesData = newPermissions.map(permissionKey => ({ //? map is a senchron function
+                    role_id: id,
+                    permission: permissionKey,
+                    created_by: req.user?.id
+                }));
+
+                await RolePrivileges.insertMany(privilegesData,{ ordered: false});
+            }
         }
 
-        await Roles.findByIdAndUpdate(id, updates, {
-            new: true,
-            runValidator: true
-        });
+        if (Object.keys(updates).length === 0 && !body.permission) {
+                return res.json({
+                    success: false,
+                    message: 'There are no fields for update'
+                })
+            }
+
+        if (Object.keys(updates).length > 0) {
+            await Roles.findByIdAndUpdate(id, updates, {
+                new: true,
+                runValidators: true
+            }); 
+        }
 
         res.json(Response.successResponse);
 
