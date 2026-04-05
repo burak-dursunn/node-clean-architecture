@@ -6,6 +6,8 @@ const id = require('is-js');
 const Response = require('../lib/Response');
 const CustomError = require('../lib/Error');
 const Enum = require('../config/Enum');
+const Roles = require('../db/models/Roles');
+const UserRoles = require('../db/models/UserRoles');
 const httpCodes = Enum.HTTP_CODES;
 
 /* GET users listing. */
@@ -23,14 +25,15 @@ router.get('/', async (req, res) => {
 });
 
 
-router.post('/register', async (req, res) => {
+router.post('/add', async (req, res) => {
   try {
+    const { body } = req;
 
-    if(!body.email) throw new CustomError(httpCodes.CREATED, 'Validation Error:','"email" field must be filled');
-    if(is.not.email(body.email)) new CustomError(httpCodes.FORBIDDEN, 'Validation Error', '"email" field must be in email format');
-    if(!body.password) throw new CustomError(httpCodes.CREATED, 'Validation Error:','"password" field must be filled');
+    if(!body.email) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"email" field must be filled');
+    if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
+    if(!body.password) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"password" field must be filled');
     
-    let hashedPassword = bcrypt.hash(body.password, bcrypt.genSalt(8)); 
+    let hashedPassword = bcrypt.hash(body.password, 8); 
 
     await Users.create({
       email: body.email,
@@ -44,7 +47,7 @@ router.post('/register', async (req, res) => {
     res.status(httpCodes.CREATED).json(Response.successResponse({ success: true}, httpCodes.CREATED));
 
   } catch (error) {
-    const errorResponse = Response.errorResponse(users);
+    const errorResponse = Response.errorResponse;
     res.status(errorResponse.code).json(errorResponse);
   }
 })
@@ -96,4 +99,47 @@ router.delete('/delete/:id', async (req, res) => {
   }
 })
 
+router.post('/first-register', async (req, res) => {
+  try {
+    const { body } = req;
+    const existingUser = await Users.findOne({});
+    
+    if (existingUser) 
+      return res.sendStatus(httpCodes.NOT_FOUND);
+
+    if(!body.email) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"email" field must be filled');
+    if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
+    if(!body.password) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"password" field must be filled');
+    
+    let hashedPassword = await bcrypt.hash(body.password, 8);
+
+    //todo Create a session in order to start a transaction
+    const createdUser = await Users.create({
+      email: body.email,
+      hashedPassword,
+      is_active: true,
+      first_name: body.first_name,
+      last_name: body.last_name,
+      phone_number: body.phone_number
+    });
+
+    //todo format the code according to "seeding" method.
+    const role = await Roles.create({
+      role_name: Enum.SUPER_ADMIN,
+      is_active: true,
+      created_by: createdUser._id
+    })
+
+    const userRoles = await UserRoles.create({
+      role_id: role._id,
+      user_id: createdUser._id
+    })
+    
+    res.status(httpCodes.CREATED).json(Response.successResponse({ success: true}, httpCodes.CREATED));
+
+  } catch (error) {
+    const errorResponse = Response.errorResponse;
+    res.status(errorResponse.code).json(errorResponse);
+  }
+})
 module.exports = router;
