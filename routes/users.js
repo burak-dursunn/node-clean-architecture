@@ -1,8 +1,8 @@
 var express = require('express');
 var router = express.Router();
 const Users = require('../db/models/Users');
-const bcrypt = require('bcrypt-nodejs');
-const id = require('is-js');
+const bcrypt = require('bcryptjs');
+const is = require('is-js');
 const Response = require('../lib/Response');
 const CustomError = require('../lib/Error');
 const Enum = require('../config/Enum');
@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
     res.json(Response.successResponse);
 
   } catch (error) {
-    const errorResponse = Response.errorResponse(users);
+    const errorResponse = Response.errorResponse(error);
     res.status(errorResponse.code).json(errorResponse);
   }
   
@@ -47,7 +47,7 @@ router.post('/add', async (req, res) => {
     res.status(httpCodes.CREATED).json(Response.successResponse({ success: true}, httpCodes.CREATED));
 
   } catch (error) {
-    const errorResponse = Response.errorResponse;
+    const errorResponse = Response.errorResponse(error);
     res.status(errorResponse.code).json(errorResponse);
   }
 })
@@ -73,7 +73,7 @@ router.put('/update/:id', async (req, res) => {
     res.json(Response.successResponse({ success: true}));
     
   } catch (error) {
-    const errorResponse = Response.errorResponse;
+    const errorResponse = Response.errorResponse(error);
     res.status(errorResponse.code).json(errorResponse.message);
   }
 })
@@ -94,21 +94,24 @@ router.delete('/delete/:id', async (req, res) => {
     
 
   } catch (error) {
-    const errorResponse = Response.errorResponse;
+    const errorResponse = Response.errorResponse(error);
     res.status(errorResponse.code).json(errorResponse.message);
   }
 })
 
+//! Only at the beginning
 router.post('/first-register', async (req, res) => {
   try {
-    const { body } = req;
+    const body = req.body;
+    if (!body) throw new CustomError(httpCodes.BAD_REQUEST, "validation Error:", "There is no 'body'");
+
     const existingUser = await Users.findOne({});
     
     if (existingUser) 
-      return res.sendStatus(httpCodes.NOT_FOUND);
+      throw new CustomError(httpCodes.NOT_FOUND, 'Existing User:','Existing User detected!')
 
     if(!body.email) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"email" field must be filled');
-    if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
+    //if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
     if(!body.password) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"password" field must be filled');
     
     let hashedPassword = await bcrypt.hash(body.password, 8);
@@ -116,7 +119,7 @@ router.post('/first-register', async (req, res) => {
     //todo Create a session in order to start a transaction
     const createdUser = await Users.create({
       email: body.email,
-      hashedPassword,
+      password: hashedPassword,
       is_active: true,
       first_name: body.first_name,
       last_name: body.last_name,
@@ -132,13 +135,15 @@ router.post('/first-register', async (req, res) => {
 
     const userRoles = await UserRoles.create({
       role_id: role._id,
-      user_id: createdUser._id
+      role_name: role.role_name,
+      user_id: createdUser._id,
+      user_name: `${createdUser.first_name} ${createdUser.last_name}`
     })
     
     res.status(httpCodes.CREATED).json(Response.successResponse({ success: true}, httpCodes.CREATED));
 
   } catch (error) {
-    const errorResponse = Response.errorResponse;
+    const errorResponse = Response.errorResponse(error);
     res.status(errorResponse.code).json(errorResponse);
   }
 })
