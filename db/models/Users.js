@@ -17,7 +17,14 @@ const userSchema = new mongoose.Schema({
 })
 
 class Users extends mongoose.Model {
-
+    //? Static Method
+    static findByEmail(email) {
+        return this.findOne({ email });
+    }
+    //? Static Factory Method
+    static async createUser(data, session) {
+        return this.create([data], { session });
+    }
 }
 
 userSchema.loadClass(Users);

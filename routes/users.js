@@ -1,13 +1,13 @@
 var express = require('express');
 var router = express.Router();
+const mongoose = require('mongoose');
 const Users = require('../db/models/Users');
+const AuthService = require('../modules/auth/auth.service');
 const bcrypt = require('bcryptjs');
 const is = require('is-js');
 const Response = require('../lib/Response');
 const CustomError = require('../lib/Error');
 const Enum = require('../config/Enum');
-const Roles = require('../db/models/Roles');
-const UserRoles = require('../db/models/UserRoles');
 const httpCodes = Enum.HTTP_CODES;
 
 /* GET users listing. */
@@ -33,11 +33,11 @@ router.post('/add', async (req, res) => {
     if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
     if(!body.password) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"password" field must be filled');
     
-    let hashedPassword = bcrypt.hash(body.password, 8); 
+    let hashedPassword = await bcrypt.hash(body.password, 8); 
 
     await Users.create({
       email: body.email,
-      hashedPassword,
+      password: hashedPassword,
       is_active: true,
       first_name: body.first_name,
       last_name: body.last_name,
@@ -61,7 +61,7 @@ router.put('/update/:id', async (req, res) => {
     if (!id) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','You must give a "id" information');
 
     if (body.password && body.password.length > Enum.PASS_LENGTH) {
-      updates.password = bycrpt.hash(body.password, bcrypt.genSalt(8));
+      updates.password = await bcrypt.hash(body.password, 8);
     }
 
     if (body.first_name) updates.first_name = body.first_name;
@@ -102,45 +102,11 @@ router.delete('/delete/:id', async (req, res) => {
 //! Only at the beginning
 router.post('/first-register', async (req, res) => {
   try {
-    const body = req.body;
-    if (!body) throw new CustomError(httpCodes.BAD_REQUEST, "validation Error:", "There is no 'body'");
+    const result = await AuthService.firstRegister(req.body);
 
-    const existingUser = await Users.findOne({});
-    
-    if (existingUser) 
-      throw new CustomError(httpCodes.NOT_FOUND, 'Existing User:','Existing User detected!')
-
-    if(!body.email) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"email" field must be filled');
-    //if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
-    if(!body.password) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"password" field must be filled');
-    
-    let hashedPassword = await bcrypt.hash(body.password, 8);
-
-    //todo Create a session in order to start a transaction
-    const createdUser = await Users.create({
-      email: body.email,
-      password: hashedPassword,
-      is_active: true,
-      first_name: body.first_name,
-      last_name: body.last_name,
-      phone_number: body.phone_number
-    });
-
-    //todo format the code according to "seeding" method.
-    const role = await Roles.create({
-      role_name: Enum.SUPER_ADMIN,
-      is_active: true,
-      created_by: createdUser._id
-    })
-
-    const userRoles = await UserRoles.create({
-      role_id: role._id,
-      role_name: role.role_name,
-      user_id: createdUser._id,
-      user_name: `${createdUser.first_name} ${createdUser.last_name}`
-    })
-    
-    res.status(httpCodes.CREATED).json(Response.successResponse({ success: true}, httpCodes.CREATED));
+    res
+      .status(httpCodes.CREATED)
+      .json(Response.successResponse(result, httpCodes.CREATED));
 
   } catch (error) {
     const errorResponse = Response.errorResponse(error);
