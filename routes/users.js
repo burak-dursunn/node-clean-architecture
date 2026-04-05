@@ -32,10 +32,20 @@ router.post('/add', async (req, res) => {
     if(!body.email) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"email" field must be filled');
     if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
     if(!body.password) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"password" field must be filled');
+    if (!body.roles || !Array.isArray(body.roles) || body.roles.length == 0) {
+      throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', 'You must give roles space in the body');
+    }
     
     let hashedPassword = await bcrypt.hash(body.password, 8); 
 
-    await Users.create({
+
+    const roles = await Roles.find({ _id : { $in: body.roles}});
+
+    if (roles.length == 0) {
+      throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', 'You must give roles space in the body');
+    }
+
+    const user = await Users.create({
       email: body.email,
       password: hashedPassword,
       is_active: true,
@@ -43,6 +53,13 @@ router.post('/add', async (req, res) => {
       last_name: body.last_name,
       phone_number: body.phone_number
     });
+
+    for (let i = 0; i<roles.length; i++) {
+      await UserRoles.create({
+        role_id: roles[0]._id,
+        user_id: user._id
+      })
+    }
     
     res.status(httpCodes.CREATED).json(Response.successResponse({ success: true}, httpCodes.CREATED));
 
@@ -56,17 +73,40 @@ router.put('/update/:id', async (req, res) => {
   try {
     const  { id } = req.params;
     const body = req.body;
+    // const allowedUpdates;
     let updates = {};
 
     if (!id) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','You must give a "id" information');
 
     if (body.password && body.password.length > Enum.PASS_LENGTH) {
       updates.password = await bcrypt.hash(body.password, 8);
-    }
+    } 
 
     if (body.first_name) updates.first_name = body.first_name;
     if (body.last_name) updates.last_name = body.last_name;
     if (body.phone_number) updates.phone_number = body.phone_number;
+
+    //todo get back and check here again
+    if(body.roles && Array.isArray(body.roles) && body.roles.length > 0) {
+      let rolOfUsers = await UsersRoles.find({ user_id: id});
+      rolOfUsers = rolOfUsers.map(r => r.role_id);
+
+      let removedRoles = rolOfUsers.filter(x => body.roles.includes(x));
+      let newRoles = body.roles.filter(x => !rolOfUsers.map(r = r.role_id).includes(x));
+    }
+
+    if (removedRoles.length > 0) {
+      await UserRoles.deleteMany({ role_id: { $in: removedRoles}});
+    }
+
+    if (newRoles.length > 0) {
+      let newUserRoles = newRoles.map(r => ({
+        role_id: r,
+        user_id: id,
+      }))
+
+      await UserRoles.insertMany(newUserRoles, { ordered: false});
+    }
 
     await Users.updateOne({ _id : id}, updates);
 
