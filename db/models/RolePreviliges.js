@@ -17,4 +17,4 @@ class RolePrevileges extends mongoose.Model {
 }
 
 schema.loadClass(RolePrevileges);
-modeule.exports = mongoose.model("role-previleges", schema);
+module.exports = mongoose.model("role-previleges", schema);
