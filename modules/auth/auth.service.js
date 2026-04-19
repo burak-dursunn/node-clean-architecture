@@ -59,11 +59,11 @@ class AuthService {
       return { success: true };
 
     } catch (error) {
-      await session.abortTransaction();
-      throw error;
+        await session.abortTransaction();
+        throw error;
 
     } finally {
-      session.endSession();
+        session.endSession();
     }
   }
 }

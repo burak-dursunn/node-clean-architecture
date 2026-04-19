@@ -60,8 +60,8 @@ router.post('/add', async (req, res) => {
         session.startTransaction();
         try {
             await role.save();
-            await RolePrivileges.insertMany(privilegesData,{ ordered: false });
-            await session.commitTransaction
+            await RolePrivileges.insertMany(privilegesData,{ ordered: false, session});
+            await session.commitTransaction();
         } catch (error) {
             await session.abortTransaction();
             throw err;
@@ -90,9 +90,7 @@ router.patch('/update/:id', async (req, res) => { // partial update
 
         Object.keys(body).forEach(key => {
             if (allowedUpdates.includes(key)) {
-                if (key == 'is_active' && typeof body[key] !== 'boolean') {
-                    return;
-                }
+                if (key == 'is_active' && typeof body[key] !== 'boolean') continue;
 
                 updates[key] = body[key];
             }
@@ -131,15 +129,16 @@ router.patch('/update/:id', async (req, res) => { // partial update
                     message: 'There are no fields for update'
                 })
             }
-
+        
+        let updatedRole = {};
         if (Object.keys(updates).length > 0) {
-            await Roles.findByIdAndUpdate(id, updates, {
+            updatedRole = await Roles.findByIdAndUpdate(id, updates, {
                 new: true,
                 runValidators: true
             }); 
         }
 
-        res.json(Response.successResponse);
+        res.json(Response.successResponse(updatedRole));
 
     } catch (err) {
         let errorResponse = Response.errorResponse(err);
