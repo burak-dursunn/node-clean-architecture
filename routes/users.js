@@ -87,16 +87,21 @@ router.put('/update/:id', async (req, res) => {
     if (body.phone_number) updates.phone_number = body.phone_number;
 
     //todo get back and check here again
+    let removedRoles = [];
+    let newRoles =  [] ;
     if(body.roles && Array.isArray(body.roles) && body.roles.length > 0) {
-      let rolOfUsers = await UsersRoles.find({ user_id: id});
-      rolOfUsers = rolOfUsers.map(r => r.role_id);
+      let rolOfUsers = await UserRoles.find({ user_id: id});
+      rolOfUsers = rolOfUsers.map(r => r.role_id.toString());
+      body.roles = body.roles.map(r  => r.toString());
 
-      let removedRoles = rolOfUsers.filter(x => body.roles.includes(x));
-      let newRoles = body.roles.filter(x => !rolOfUsers.map(r = r.role_id).includes(x));
+      let removedRoles = rolOfUsers.filter(x => !body.roles.includes(x));
+      let newRoles = body.roles.filter(x => !rolOfUsers.includes(x));
     }
 
     if (removedRoles.length > 0) {
-      await UserRoles.deleteMany({ role_id: { $in: removedRoles}});
+      await UserRoles.deleteMany({ 
+        user_id: id, 
+        role_id: { $in: removedRoles}});
     }
 
     if (newRoles.length > 0) {

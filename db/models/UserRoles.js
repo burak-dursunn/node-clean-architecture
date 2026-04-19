@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const schema = mongoose.Schema({
     role_id: { type: mongoose.Schema.Types.ObjectId, required: true },
-    role_name: {type: String, required: true},
+    role_name: {type: String },
     user_id: { type: mongoose.Schema.Types.ObjectId, required: true },
-    user_name: { type: String, required: true}
+    user_name: { type: String }
 }, {
     versionKey: false,
     timestamps: {

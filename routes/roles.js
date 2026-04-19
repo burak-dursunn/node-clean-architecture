@@ -29,15 +29,15 @@ router.post('/add', async (req, res) => {
             throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error!", '"permissions" field must be an array or must be filled');
         };
 
-        const role = new Role({
+        const role = new Roles({
             role_name: body.role_name,
             is_active: body.is_active,
             created_by: req.user?.id //! attribute is defined like this for now
         })
 
-        await role.save();
+        
 
-        // for (let i = 0; i<body.permissions.lenght; i++) {
+        // for (let i = 0; i<body.permissions.length; i++) {
         //     let priv = new RolePrivileges({
         //         role_id: role._id,
         //         permission: body.permissions[i],
@@ -55,7 +55,21 @@ router.post('/add', async (req, res) => {
             }
         })
 
-        await RolePrivileges.insertMany(privilegesData,{ ordered: false });
+        //! Transaction Usage
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            await role.save();
+            await RolePrivileges.insertMany(privilegesData,{ ordered: false });
+            await session.commitTransaction
+        } catch (error) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            session.endSession();
+        }
+
+
 
         res.json(Response.successResponse);
 
@@ -85,13 +99,13 @@ router.patch('/update/:id', async (req, res) => { // partial update
         })
 
 
-        if (body.permission && Array.isArray(body.permissions) && body.permissions.length > 0) {
+        if (body.permissions && Array.isArray(body.permissions) && body.permissions.length > 0) {
             let existingPrivileges = await RolePrivileges.find({role_id: id});
-            let existinPermissionsList = existingPrivileges.map(p => p.permission);
+            let existingPermissionsList = existingPrivileges.map(p => p.permission);
 
             //!
-            let removedPermissions = existinPermissionsList.filter(perm => !body.permission.includes(perm));
-            let newPermissions = body.permission.filter(perm => !existinPermissionsList.includes(perm));
+            let removedPermissions = existingPermissionsList.filter(perm => !body.permissions.includes(perm)); 
+            let newPermissions = body.permissions.filter(perm => !existingPermissionsList.includes(perm));
 
             if (removedPermissions.length > 0) {
                 await RolePrivileges.deleteMany({
