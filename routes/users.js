@@ -3,7 +3,8 @@ var router = express.Router();
 const mongoose = require('mongoose');
 const Users = require('../db/models/Users');
 const AuthService = require('../modules/auth/auth.service');
-const bcrypt = require('bcryptjs');
+const AuditLogs = require('../lib/auditLogs');
+const bcrypt = require('bcrypt');
 const is = require('is-js');
 const Response = require('../lib/Response');
 const CustomError = require('../lib/Error');
@@ -30,7 +31,7 @@ router.post('/add', async (req, res) => {
     const { body } = req;
 
     if(!body.email) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"email" field must be filled');
-    if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
+    //if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
     if(!body.password) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','"password" field must be filled');
     if (!body.roles || !Array.isArray(body.roles) || body.roles.length == 0) {
       throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', 'You must give roles space in the body');
@@ -54,9 +55,11 @@ router.post('/add', async (req, res) => {
       phone_number: body.phone_number
     });
 
+    AuditLogs.info(req.user?.email || "Burak Dursun", "Users", "Add", { user });
+
     for (let i = 0; i<roles.length; i++) {
       await UserRoles.create({
-        role_id: roles[0]._id,
+        role_id: roles[i]._id,
         user_id: user._id
       })
     }

@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-const Users = require('../../db/models/users.model');
-const Roles = require('../../db/models/roles.model');
-const UserRoles = require('../../db/models/userRoles.model');
+const Users = require('../../db/models/Users');
+const Roles = require('../../db/models/Roles');
+const UserRoles = require('../../db/models/UserRoles');
 
 class AuthService {
   static async firstRegister(body) {
