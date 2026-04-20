@@ -1,7 +1,8 @@
-const express = require('express');
-const router = express.Router();
+var express = require('express');
+var router = express.Router();
+const mongoose = require('mongoose');
 const Roles = require('../db/models/Roles');
-const RolePrivileges = require('../db/models/RolePriviliges');
+const RolePrivileges = require('../db/models/RolePrivileges');
 const Response = require('../lib/Response');
 const CustomError = require('../lib/Error');
 const Enum = require('../config/Enum');
@@ -32,7 +33,7 @@ router.post('/add', async (req, res) => {
         const role = new Roles({
             role_name: body.role_name,
             is_active: body.is_active,
-            created_by: req.user?.id //! attribute is defined like this for now
+            created_by: req.user?.id || new mongoose.Types.ObjectId("5f8f8c44b54764421b7156e9") //! attribute is defined like this for now
         })
 
         
@@ -51,7 +52,7 @@ router.post('/add', async (req, res) => {
             return {
                 role_id: role._id,
                 permission: permissionKey,
-                created_by: req.user?.id
+                created_by: req.user?.id || new mongoose.Types.ObjectId("5f8f8c44b54764421b7156e9")
             }
         })
 
@@ -64,7 +65,7 @@ router.post('/add', async (req, res) => {
             await session.commitTransaction();
         } catch (error) {
             await session.abortTransaction();
-            throw err;
+            throw error;
         } finally {
             session.endSession();
         }
@@ -88,13 +89,14 @@ router.patch('/update/:id', async (req, res) => { // partial update
         const allowedUpdates = ["role_name", "is_active"];
         let updates = {};
 
-        Object.keys(body).forEach(key => {
+        for (const key of Object.keys(body)) {
             if (allowedUpdates.includes(key)) {
-                if (key == 'is_active' && typeof body[key] !== 'boolean') continue;
+            // for...of kullandığımız için continue burada sorunsuz çalışır
+                if (key == 'is_active' && typeof body[key] !== 'boolean') continue; 
 
                 updates[key] = body[key];
             }
-        })
+        }
 
 
         if (body.permissions && Array.isArray(body.permissions) && body.permissions.length > 0) {
@@ -116,7 +118,7 @@ router.patch('/update/:id', async (req, res) => { // partial update
                 let privilegesData = newPermissions.map(permissionKey => ({ //? map is a senchron function
                     role_id: id,
                     permission: permissionKey,
-                    created_by: req.user?.id
+                    created_by: req.user?.id || new mongoose.Types.ObjectId("5f8f8c44b54764421b7156e9")
                 }));
 
                 await RolePrivileges.insertMany(privilegesData,{ ordered: false});
@@ -175,3 +177,5 @@ router.delete('/delete/:id', async (req, res) => {
 router.get('/role_privileges', async (req, res) => {
     res.json(role_privileges);
 })
+
+module.exports = router;

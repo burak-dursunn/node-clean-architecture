@@ -12,9 +12,9 @@ const schema = mongoose.Schema({
     }
 })
 
-class RolePrevileges extends mongoose.Model {
+class RolePrivileges extends mongoose.Model {
 
 }
 
-schema.loadClass(RolePrevileges);
-module.exports = mongoose.model("role-previleges", schema);
+schema.loadClass(RolePrivileges);
+module.exports = mongoose.model("role-privileges", schema);
