@@ -6,15 +6,24 @@ const httpCodes = Enum.HTTP_CODES
 const Response = require('../lib/Response');
 const CustomError = require('../lib/Error');
 const AuditLogs = require('../lib/auditLogs');
+const logger = require('../lib/logger/loggerClass');
 
 // GET categories listing
 router.get('/', async(req, res) => {
     try {
         let categories = await Categories.find({});
         AuditLogs.info("burakdursun00@gmail.com","Categories", "Get List", "Getting Category List");
+        logger.info({
+            email: req.user?.email,
+            location: "Categories",
+            procType: "Get List",
+            log: "Getting Category List"
+        });
 
         res.json(Response.successResponse(categories));
     } catch (error) {
+        logger.error({ email: req.user?.email, location: "Categories", procType: "Get List", log: error })
+
         let errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code || httpCodes.INT_SERVER_ERROR).json(errorResponse);
         
@@ -38,9 +47,11 @@ router.post('/add', async(req, res) => {
 
         //! Logging
         AuditLogs.info("burakdursun00@gmail.com", "Categories", "Add", { category });
+        logger.info({ email: req.user?.email, location: "Categories", procType: "Add", log: { category } });
 
         res.json(Response.successResponse({success: true}))
     } catch (error){
+        logger.error({ email: req.user?.email, location: "Categories", procType: "Add", log: error });
         let errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code || httpCodes.INT_SERVER_ERROR).json(errorResponse);
     }
