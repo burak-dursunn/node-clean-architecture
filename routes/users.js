@@ -55,7 +55,8 @@ router.post('/add', async (req, res) => {
       phone_number: body.phone_number
     });
 
-    AuditLogs.info(req.user?.email || "Burak Dursun", "Users", "Add", { user });
+    //todo 
+    //todo AuditLogs.info(req.user?.email || "Burak Dursun", "Users", "Add", { user });
 
     for (let i = 0; i<roles.length; i++) {
       await UserRoles.create({

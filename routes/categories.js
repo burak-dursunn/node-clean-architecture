@@ -5,15 +5,17 @@ const Enum = require('../config/Enum');
 const httpCodes = Enum.HTTP_CODES
 const Response = require('../lib/Response');
 const CustomError = require('../lib/Error');
+const AuditLogs = require('../lib/auditLogs');
 
 // GET categories listing
 router.get('/', async(req, res) => {
     try {
         let categories = await Categories.find({});
+        AuditLogs.info("burakdursun00@gmail.com","Categories", "Get List", "Getting Category List");
 
-        res.json(Response.succesResponse(categories));
+        res.json(Response.successResponse(categories));
     } catch (error) {
-        let errorResponse = Response.errorResponse(err);
+        let errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code || httpCodes.INT_SERVER_ERROR).json(errorResponse);
         
     }
@@ -33,6 +35,9 @@ router.post('/add', async(req, res) => {
         })
 
         await category.save();
+
+        //! Logging
+        AuditLogs.info("burakdursun00@gmail.com", "Categories", "Add", { category });
 
         res.json(Response.successResponse({success: true}))
     } catch (error){
