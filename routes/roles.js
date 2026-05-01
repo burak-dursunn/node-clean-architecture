@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 var express = require('express');
 var router = express.Router();
 const mongoose = require('mongoose');
@@ -11,7 +12,7 @@ const role_privileges = require('../config/role_privileges');
 
 router.get('/', async (req, res) => {
     try {
-        const role = await Role.find();
+        const role = await Roles.find();
 
         res.json(Response.successResponse({ success: true }));
 

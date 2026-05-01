@@ -60,6 +60,7 @@ router.post('/add', async(req, res) => {
 
 router.put('/update', async (req, res) => {
     let body = req.body;
+    let counter = 0;
     try {
         if (!body._id) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error:", '"_id" area must be filled.');
         let allowedUpdates = ["name"]; //* WhiteList

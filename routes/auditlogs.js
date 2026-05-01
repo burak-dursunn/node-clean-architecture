@@ -13,38 +13,38 @@ router.get('/', async (req, res) => {
     let skip = body.skip;
     let limit = body.limit;
     try {
-        if (!body) 
-            throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:','body part must be filled');
+        if (!body)
+            throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', 'body part must be filled');
 
-        if (typeof body.skip !== 'numeric') {
+        if (typeof body.skip !== 'number') {
             skip = 0;
         }
 
-        if (typeof body.limit !== 'numeric' || body.limit > 500) {
+        if (typeof body.limit !== 'number' || body.limit > 500) {
             limit = 500;
         }
-        
+
         if (body.begin_date && body.end_date) {
             query.created_at = {
                 $gte: body.begin_date,
                 $lte: body.end_date
             }
-            
+
         } else {
             query.created_at = {
                 $gte: moment().subtract(1, "day").startOf("day"),
                 $lte: moment()
             }
 
-            let auditLogs = await AuditLogs.find(query).sort({ created_at: -1}).skip(skip).limit(limit);
+            let auditLogs = await AuditLogs.find(query).sort({ created_at: -1 }).skip(skip).limit(limit);
 
             res.json(Response.successResponse(auditLogs));
         }
-        
+
     } catch (error) {
         const errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code).json(errorResponse);
-        
+
     }
 })
 
