@@ -4,6 +4,9 @@ const bcrypt = require('bcrypt');
 const Users = require('../../db/models/Users');
 const Roles = require('../../db/models/Roles');
 const UserRoles = require('../../db/models/UserRoles');
+const CustomError = require('../../lib/Error');
+const Enum = require('../../config/Enum');
+const httpCodes = Enum.HTTP_CODES;
 
 class AuthService {
   static async firstRegister(body) {
@@ -59,11 +62,11 @@ class AuthService {
       return { success: true };
 
     } catch (error) {
-        await session.abortTransaction();
-        throw error;
+      await session.abortTransaction();
+      throw error;
 
     } finally {
-        session.endSession();
+      session.endSession();
     }
   }
 }

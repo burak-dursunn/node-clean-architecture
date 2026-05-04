@@ -1,5 +1,5 @@
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 const Categories = require('../db/models/Categories')
 const Enum = require('../config/Enum');
 const httpCodes = Enum.HTTP_CODES
@@ -7,12 +7,13 @@ const Response = require('../lib/Response');
 const CustomError = require('../lib/Error');
 const AuditLogs = require('../lib/auditLogs');
 const logger = require('../lib/logger/loggerClass');
+const auth = require('../lib/auth');
 
 // GET categories listing
-router.get('/', async(req, res) => {
+router.get('/', auth.authenticate(), async (req, res) => {
     try {
         let categories = await Categories.find({});
-        AuditLogs.info("burakdursun00@gmail.com","Categories", "Get List", "Getting Category List");
+        AuditLogs.info(req.user.email, "Categories", "Get List", "Getting Category List");
         logger.info({
             email: req.user?.email,
             location: "Categories",
@@ -26,31 +27,31 @@ router.get('/', async(req, res) => {
 
         let errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code || httpCodes.INT_SERVER_ERROR).json(errorResponse);
-        
+
     }
 })
 
 
-router.post('/add', async(req, res) => {
+router.post('/add', auth.authenticate(), async (req, res) => {
     let body = req.body;
 
     try {
-        if(!body.name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error:",'"name" area must be filled');
+        if (!body.name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error:", '"name" area must be filled');
 
         let category = new Categories({
             name: body.name,
             is_active: true,
-            created_by: req.user?.id
+            created_by: req.user.id
         })
 
         await category.save();
 
         //! Logging
-        AuditLogs.info("burakdursun00@gmail.com", "Categories", "Add", { category });
-        logger.info({ email: req.user?.email, location: "Categories", procType: "Add", log: { category } });
+        AuditLogs.info(req.user.email, "Categories", "Add", { category });
+        logger.info({ email: req.user.email, location: "Categories", procType: "Add", log: { category } });
 
-        res.json(Response.successResponse({success: true}))
-    } catch (error){
+        res.json(Response.successResponse({ success: true }))
+    } catch (error) {
         logger.error({ email: req.user?.email, location: "Categories", procType: "Add", log: error });
         let errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code || httpCodes.INT_SERVER_ERROR).json(errorResponse);
@@ -58,45 +59,44 @@ router.post('/add', async(req, res) => {
 
 })
 
-router.put('/update', async (req, res) => {
+router.put('/update/:id', auth.authenticate(), async (req, res) => {
     let body = req.body;
-    let counter = 0;
     try {
-        if (!body._id) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error:", '"_id" area must be filled.');
+        const { id } = req.params;
+        if (!id) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error:", '"id" param must be provided.');
         let allowedUpdates = ["name"]; //* WhiteList
-        let updates = { };
-        
+        let updates = {};
+
         Object.keys(body).forEach(key => {
             if (allowedUpdates.includes(key)) {
-                updates[counter] = body[key];
-                counter++;
+                updates[key] = body[key];
             }
         });
-        
-        if( typeof body.is_active === 'boolean') updates.is_active = body.is_active;
 
-        await Categories.updateOne({_id: body._id}, updates);
+        if (typeof body.is_active === 'boolean') updates.is_active = body.is_active;
+
+        await Categories.updateOne({ _id: id }, updates);
 
         res.json(Response.successResponse({ success: true }));
-        
-    } catch (error) { 
+
+    } catch (error) {
         let errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code).json(errorResponse);
-        
+
     }
 })
 
 
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
     try {
         const { id } = req.params;
         const deleting = await Categories.findByIdAndDelete(id);
-        
+
         if (!deleting) {
             throw new CustomError(Enum.HTTP_CODES.NOT_FOUND, "Not Found", "The category you want to delete could not be found.");
         }
 
-        res.json(Response.successResponse({ 
+        res.json(Response.successResponse({
             success: true,
             message: 'Category has been successfully deleted'
         }))

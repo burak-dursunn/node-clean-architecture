@@ -35,13 +35,13 @@ class Users extends mongoose.Model {
         return this.create([data], { session });
     }
 
-    static validPassword(password) {
+    async validPassword(password) {
         return bcrypt.compare(password, this.password);
     }
 
     static validateFieldsBeforeAuth(email, password) {
-        if (typeof password !== 'string' || password.length <= 0 || is.not.email(email)) 
-            throw new CustomError(HTTP_CODES.UNAUTHORIZED, "Validation Error: ","email or password is wrong")
+        if (typeof password !== 'string' || password.length <= 0 || is.not.email(email))
+            throw new CustomError(HTTP_CODES.UNAUTHORIZED, "Validation Error: ", "email or password is wrong")
 
         return null
     }

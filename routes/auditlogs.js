@@ -1,50 +1,50 @@
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 const AuditLogs = require('../db/models/AuditLogs');
 const Enum = require('../config/Enum');
 const httpCodes = Enum.HTTP_CODES;
 const Response = require('../lib/Response')
 const CustomError = require('../lib/Error');
 const moment = require('moment');
+const auth = require('../lib/auth');
 
-router.get('/', async (req, res) => {
+router.get('/', auth.authenticate(), async (req, res) => {
     const body = req.body;
-    let query = {};
-    let skip = body.skip;
-    let limit = body.limit;
     try {
-        if (!body)
-            throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', 'body part must be filled');
+        let query = {};
+        let skip = parseInt(req.body.skip) || 0;
+        let limit = parseInt(req.body.limit);
 
-        if (typeof body.skip !== 'number') {
+        if (typeof skip !== 'number') {
             skip = 0;
         }
 
-        if (typeof body.limit !== 'number' || body.limit > 500) {
+        if (isNaN(limit) || limit > 500) {
             limit = 500;
         }
 
         if (body.begin_date && body.end_date) {
             query.created_at = {
-                $gte: body.begin_date,
-                $lte: body.end_date
-            }
-
+                $gte: new Date(req.query.begin_date),
+                $lte: new Date(req.query.end_date)
+            };
         } else {
             query.created_at = {
-                $gte: moment().subtract(1, "day").startOf("day"),
-                $lte: moment()
-            }
-
-            let auditLogs = await AuditLogs.find(query).sort({ created_at: -1 }).skip(skip).limit(limit);
-
-            res.json(Response.successResponse(auditLogs));
+                $gte: moment().subtract(1, "day").startOf("day").toDate(),
+                $lte: moment().toDate()
+            };
         }
+
+        const auditLogs = await AuditLogs.find(query)
+            .sort({ created_at: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        res.json(Response.successResponse(auditLogs));
 
     } catch (error) {
         const errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code).json(errorResponse);
-
     }
 })
 

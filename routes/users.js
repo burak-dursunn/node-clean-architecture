@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 
 const mongoose = require('mongoose');
 const Users = require('../db/models/Users');
@@ -17,13 +17,14 @@ const CustomError = require('../lib/Error');
 const config = require('../config');
 const Enum = require('../config/Enum');
 const httpCodes = Enum.HTTP_CODES;
+const auth = require('../lib/auth');
 
 /* GET users listing. */
-router.get('/', async (req, res) => {
+router.get('/', auth.authenticate(), async (req, res) => {
   try {
     const users = await Users.find();
 
-    res.json(Response.successResponse);
+    res.json(Response.successResponse(users));
 
   } catch (error) {
     const errorResponse = Response.errorResponse(error);
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
 });
 
 
-router.post('/add', async (req, res) => {
+router.post('/add', auth.authenticate(), async (req, res) => {
   try {
     const { body } = req;
 
@@ -44,7 +45,7 @@ router.post('/add', async (req, res) => {
       throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', 'You must give roles space in the body');
     }
 
-    let hashedPassword = await bcrypt.hash(body.password, 8);
+    let hashedPassword = await bcrypt.hash(body.password, 10);
 
 
     const roles = await Roles.find({ _id: { $in: body.roles } });
@@ -62,8 +63,7 @@ router.post('/add', async (req, res) => {
       phone_number: body.phone_number
     });
 
-    //todo 
-    //todo AuditLogs.info(req.user?.email || "Burak Dursun", "Users", "Add", { user });
+    AuditLogs.info(req.user.email, "Users", "Add", { user });
 
     for (let i = 0; i < roles.length; i++) {
       await UserRoles.create({
@@ -80,17 +80,16 @@ router.post('/add', async (req, res) => {
   }
 })
 
-router.put('/update/:id', async (req, res) => {
+router.put('/update/:id', auth.authenticate(), async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body;
-    // const allowedUpdates;
     let updates = {};
 
     if (!id) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', 'You must give a "id" information');
 
     if (body.password && body.password.length > Enum.PASS_LENGTH) {
-      updates.password = await bcrypt.hash(body.password, 8);
+      updates.password = await bcrypt.hash(body.password, 10);
     }
 
     if (body.first_name) updates.first_name = body.first_name;
@@ -105,8 +104,8 @@ router.put('/update/:id', async (req, res) => {
       rolOfUsers = rolOfUsers.map(r => r.role_id.toString());
       body.roles = body.roles.map(r => r.toString());
 
-      let removedRoles = rolOfUsers.filter(x => !body.roles.includes(x));
-      let newRoles = body.roles.filter(x => !rolOfUsers.includes(x));
+      removedRoles = rolOfUsers.filter(x => !body.roles.includes(x));
+      newRoles = body.roles.filter(x => !rolOfUsers.includes(x));
     }
 
     if (removedRoles.length > 0) {
@@ -131,11 +130,11 @@ router.put('/update/:id', async (req, res) => {
 
   } catch (error) {
     const errorResponse = Response.errorResponse(error);
-    res.status(errorResponse.code).json(errorResponse.message);
+    res.status(errorResponse.code).json(errorResponse);
   }
 })
 
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
   try {
     const { id } = req.params
 
@@ -182,7 +181,7 @@ router.post("/auth", async (req, res) => {
 
     if (!user) throw new CustomError(Enum.HTTP_CODES.UNAUTHORIZED, "Validation Error", "Email or password is wrong");
 
-    if (!user.validPassword(password)) throw new CustomError(Enum.HTTP_CODES.UNAUTHORIZED, "Validation Error", "Email or password is wrong");
+    if (!await user.validPassword(password)) throw new CustomError(Enum.HTTP_CODES.UNAUTHORIZED, "Validation Error", "Email or password is wrong");
 
     let payload = {
       id: user._id,

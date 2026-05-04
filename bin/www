@@ -7,7 +7,7 @@
 var app = require('../app');
 var debug = require('debug')('api:server');
 var http = require('http');
-const Database = require("../db/database.js");
+const Database = require("../db/Database.js");
 const { CONNECTION_STRING, PORT } = require("../config");
 
 /**
@@ -90,5 +90,9 @@ function onListening() {
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
 
-  Database.connect({ CONNECTION_STRING });
+  Database.connect({ CONNECTION_STRING })
+    .catch(err => {
+      console.error('Database connection failed:', err);
+      process.exit(1);
+    });
 }

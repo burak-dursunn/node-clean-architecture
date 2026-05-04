@@ -4,7 +4,7 @@ module.exports = {
     "LOG_LEVEL": process.env.LOG_LEVEL || 'debug',
     "JWT": {
         "SECRET": process.env.SECRET,
-        "EXPIRE_TIME": !isNaN(parseInt(process.env.TOKEN_EXPIRE_TIME))? process.env.TOKEN_EXPIRE_TIME : 24 * 60 * 60
+        "EXPIRE_TIME": !isNaN(parseInt(process.env.TOKEN_EXPIRE_TIME)) ? parseInt(process.env.TOKEN_EXPIRE_TIME) : 86400
     }
     
 }

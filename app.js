@@ -7,6 +7,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var auth = require('./lib/auth');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -25,6 +26,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(auth.initialize());
 
 //! Routers
 //todo Controller class
@@ -41,13 +43,14 @@ app.use(function (req, res, next) {
 
 // error handler
 app.use(function (err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+  const statusCode = err.status || err.code || 500;
 
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
+  res.status(statusCode).json({
+    error: {
+      message: err.message || 'Internal Server Error',
+      ...(req.app.get('env') === 'development' && { stack: err.stack })
+    }
+  });
 });
 
 module.exports = app;
