@@ -1,4 +1,8 @@
 const mongoose = require('mongoose');
+const is = require('is-js');
+const CustomError = require('../../lib/Error');
+const { HTTP_CODES } = require('../../config/Enum');
+const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
@@ -6,7 +10,12 @@ const userSchema = new mongoose.Schema({
     is_active: { type: Boolean, default: true },
     first_name: String,
     last_name: String,
-    phone_number: String
+    phone_number: String,
+    roles: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "roles",
+        required: true
+    }]
 }, {
     versionKey: false,
     //? timestamps: true,
@@ -24,6 +33,17 @@ class Users extends mongoose.Model {
     //? Static Factory Method
     static async createUser(data, session) {
         return this.create([data], { session });
+    }
+
+    static validPassword(password) {
+        return bcrypt.compare(password, this.password);
+    }
+
+    static validateFieldsBeforeAuth(email, password) {
+        if (typeof password !== 'string' || password.length <= 0 || is.not.email(email)) 
+            throw new CustomError(HTTP_CODES.UNAUTHORIZED, "Validation Error: ","email or password is wrong")
+
+        return null
     }
 }
 
