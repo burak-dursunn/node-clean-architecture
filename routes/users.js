@@ -9,6 +9,7 @@ const UserRoles = require('../db/models/UserRoles');
 const AuthService = require('../modules/auth/auth.service');
 
 const AuditLogs = require('../lib/auditLogs');
+const logger = require('../lib/logger/loggerClass');
 const bcrypt = require('bcrypt');
 const jwt = require('jwt-simple');
 const is = require('is-js');
@@ -24,13 +25,14 @@ router.get('/', auth.authenticate(), async (req, res) => {
   try {
     const users = await Users.find();
 
+    logger.info({ email: req.user.email, location: 'Users', procType: 'Get List', log: `${users.length} users fetched` });
     res.json(Response.successResponse(users));
 
   } catch (error) {
+    logger.error({ email: req.user?.email, location: 'Users', procType: 'Get List', log: error.message });
     const errorResponse = Response.errorResponse(error);
     res.status(errorResponse.code).json(errorResponse);
   }
-
 });
 
 
@@ -39,14 +41,12 @@ router.post('/add', auth.authenticate(), async (req, res) => {
     const { body } = req;
 
     if (!body.email) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', '"email" field must be filled');
-    //if(is.not.email(body.email)) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error', '"email" field must be in email format');
     if (!body.password) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', '"password" field must be filled');
     if (!body.roles || !Array.isArray(body.roles) || body.roles.length == 0) {
       throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', 'You must give roles space in the body');
     }
 
     let hashedPassword = await bcrypt.hash(body.password, 10);
-
 
     const roles = await Roles.find({ _id: { $in: body.roles } });
 
@@ -63,7 +63,8 @@ router.post('/add', auth.authenticate(), async (req, res) => {
       phone_number: body.phone_number
     });
 
-    AuditLogs.info(req.user.email, "Users", "Add", { user });
+    AuditLogs.info(req.user.email, 'Users', 'Add', { user });
+    logger.info({ email: req.user.email, location: 'Users', procType: 'Add', log: { userId: user._id, email: user.email } });
 
     for (let i = 0; i < roles.length; i++) {
       await UserRoles.create({
@@ -75,6 +76,7 @@ router.post('/add', auth.authenticate(), async (req, res) => {
     res.status(httpCodes.CREATED).json(Response.successResponse({ success: true }, httpCodes.CREATED));
 
   } catch (error) {
+    logger.error({ email: req.user?.email, location: 'Users', procType: 'Add', log: error.message });
     const errorResponse = Response.errorResponse(error);
     res.status(errorResponse.code).json(errorResponse);
   }
@@ -96,7 +98,6 @@ router.put('/update/:id', auth.authenticate(), async (req, res) => {
     if (body.last_name) updates.last_name = body.last_name;
     if (body.phone_number) updates.phone_number = body.phone_number;
 
-    //todo get back and check here again
     let removedRoles = [];
     let newRoles = [];
     if (body.roles && Array.isArray(body.roles) && body.roles.length > 0) {
@@ -126,9 +127,11 @@ router.put('/update/:id', auth.authenticate(), async (req, res) => {
 
     await Users.updateOne({ _id: id }, updates);
 
+    logger.info({ email: req.user.email, location: 'Users', procType: 'Update', log: { targetUserId: id, updates: Object.keys(updates) } });
     res.json(Response.successResponse({ success: true }));
 
   } catch (error) {
+    logger.error({ email: req.user?.email, location: 'Users', procType: 'Update', log: error.message });
     const errorResponse = Response.errorResponse(error);
     res.status(errorResponse.code).json(errorResponse);
   }
@@ -142,16 +145,17 @@ router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
 
     if (!deletedData) throw new CustomError(httpCodes.BAD_REQUEST, 'Validation Error:', 'You must give a valid "id"');
 
+    logger.info({ email: req.user.email, location: 'Users', procType: 'Delete', log: { deletedUserId: id } });
     res.json(Response.successResponse({
       success: true,
       data: deletedData,
       message: "User has been succesfully deleted."
     }))
 
-
   } catch (error) {
+    logger.error({ email: req.user?.email, location: 'Users', procType: 'Delete', log: error.message });
     const errorResponse = Response.errorResponse(error);
-    res.status(errorResponse.code).json(errorResponse.message);
+    res.status(errorResponse.code).json(errorResponse);
   }
 })
 
@@ -196,9 +200,11 @@ router.post("/auth", async (req, res) => {
       last_name: user.last_name
     }
 
+    logger.info({ email: user.email, location: 'Users', procType: 'Auth', log: 'Login successful' });
     res.json(Response.successResponse({ token, user: userData }));
 
   } catch (err) {
+    logger.warn({ email: req.body?.email || 'unknown', location: 'Users', procType: 'Auth', log: err.message });
     let errorResponse = Response.errorResponse(err);
     res.status(errorResponse.code).json(errorResponse);
   }

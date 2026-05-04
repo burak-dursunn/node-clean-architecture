@@ -10,14 +10,17 @@ const Enum = require('../config/Enum');
 const httpCodes = Enum.HTTP_CODES;
 const role_privileges = require('../config/role_privileges');
 const auth = require('../lib/auth');
+const logger = require('../lib/logger/loggerClass');
 
 router.get('/', auth.authenticate(), async (req, res) => {
     try {
         const roles = await Roles.find();
 
+        logger.info({ email: req.user.email, location: 'Roles', procType: 'Get List', log: `${roles.length} roles fetched` });
         res.json(Response.successResponse(roles));
 
     } catch (err) {
+        logger.error({ email: req.user?.email, location: 'Roles', procType: 'Get List', log: err.message });
         let errorResponse = Response.errorResponse(err);
         res.status(errorResponse.code).json(errorResponse);
     }
@@ -72,9 +75,11 @@ router.post('/add', auth.authenticate(), async (req, res) => {
 
 
 
+        logger.info({ email: req.user.email, location: 'Roles', procType: 'Add', log: { roleName: body.role_name } });
         res.json(Response.successResponse({ success: true }));
 
     } catch (err) {
+        logger.error({ email: req.user?.email, location: 'Roles', procType: 'Add', log: err.message });
         let errorResponse = Response.errorResponse(err);
         res.status(errorResponse.code).json(errorResponse);
     }
@@ -140,9 +145,11 @@ router.patch('/update/:id', auth.authenticate(), async (req, res) => { // partia
             });
         }
 
+        logger.info({ email: req.user.email, location: 'Roles', procType: 'Update', log: { roleId: id, updates: Object.keys(updates) } });
         res.json(Response.successResponse(updatedRole));
 
     } catch (err) {
+        logger.error({ email: req.user?.email, location: 'Roles', procType: 'Update', log: err.message });
         let errorResponse = Response.errorResponse(err);
         res.status(errorResponse.code).json(errorResponse);
     }
@@ -165,9 +172,11 @@ router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
         //? deleteMany function returns an object containing the count of deleted documents.
         //? on the other hand, findByIdAndDelete returns the information of deleted item as a json
 
+        logger.info({ email: req.user.email, location: 'Roles', procType: 'Delete', log: { deletedRoleId: id, deletedRole: deletedRole.role_name } });
         res.json(Response.successResponse({ success: true }));
 
     } catch (error) {
+        logger.error({ email: req.user?.email, location: 'Roles', procType: 'Delete', log: error.message });
         let errorResponse = Response.errorResponse(error);
         res.status(errorResponse.code).json(errorResponse);
     }

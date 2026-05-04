@@ -10,12 +10,7 @@ const userSchema = new mongoose.Schema({
     is_active: { type: Boolean, default: true },
     first_name: String,
     last_name: String,
-    phone_number: String,
-    roles: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "roles",
-        required: true
-    }]
+    phone_number: String
 }, {
     versionKey: false,
     //? timestamps: true,
@@ -40,7 +35,7 @@ class Users extends mongoose.Model {
     }
 
     static validateFieldsBeforeAuth(email, password) {
-        if (typeof password !== 'string' || password.length <= 0 || is.not.email(email))
+        if (typeof password !== 'string' || password.length <= 0)
             throw new CustomError(HTTP_CODES.UNAUTHORIZED, "Validation Error: ", "email or password is wrong")
 
         return null
