@@ -12,7 +12,16 @@ const role_privileges = require('../config/role_privileges');
 const auth = require('../lib/auth');
 const logger = require('../lib/logger/loggerClass');
 
-router.get('/', auth.authenticate(), async (req, res) => {
+router.get('/role_privileges', async (req, res) => {
+    res.json(role_privileges);
+})
+
+//! Authentication Middleware
+router.all('*', auth.authenticate(), (req, res, next) => {
+    next();
+});
+
+router.get('/', async (req, res) => {
     try {
         const roles = await Roles.find();
 
@@ -27,7 +36,7 @@ router.get('/', auth.authenticate(), async (req, res) => {
 })
 
 
-router.post('/add', auth.authenticate(), async (req, res) => {
+router.post('/add', async (req, res) => {
     const body = req.body;
     try {
         if (!body.role_name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error!", '"role_name" area must be filled');
@@ -85,7 +94,7 @@ router.post('/add', auth.authenticate(), async (req, res) => {
     }
 })
 
-router.patch('/update/:id', auth.authenticate(), async (req, res) => { // partial update
+router.patch('/update/:id', async (req, res) => { // partial update
     const body = req.body;
     const { id } = req.params;
     try {
@@ -155,7 +164,7 @@ router.patch('/update/:id', auth.authenticate(), async (req, res) => { // partia
     }
 })
 
-router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
+router.delete('/delete/:id', async (req, res) => {
     try {
         const { id } = req.params;
         if (!id) {
@@ -182,9 +191,4 @@ router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
     }
 
 })
-
-router.get('/role_privileges', async (req, res) => {
-    res.json(role_privileges);
-})
-
 module.exports = router;

@@ -9,18 +9,16 @@ const AuditLogs = require('../lib/auditLogs');
 const logger = require('../lib/logger/loggerClass');
 const auth = require('../lib/auth');
 
+router.all('*', auth.authenticate(), (req, res, next) => {
+    next();
+});
+
 // GET categories listing
-router.get('/', auth.authenticate(), async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         let categories = await Categories.find({});
-        AuditLogs.info(req.user.email, "Categories", "Get List", "Getting Category List");
-        logger.info({
-            email: req.user?.email,
-            location: "Categories",
-            procType: "Get List",
-            log: "Getting Category List"
-        });
 
+        // logger.info({ email: req.user.email, location: "Categories", procType: "Get List", log: { categories } });
         res.json(Response.successResponse(categories));
     } catch (error) {
         logger.error({ email: req.user?.email, location: "Categories", procType: "Get List", log: error })
@@ -32,7 +30,7 @@ router.get('/', auth.authenticate(), async (req, res) => {
 })
 
 
-router.post('/add', auth.authenticate(), async (req, res) => {
+router.post('/add', async (req, res) => {
     let body = req.body;
 
     try {
@@ -47,7 +45,6 @@ router.post('/add', auth.authenticate(), async (req, res) => {
         await category.save();
 
         //! Logging
-        AuditLogs.info(req.user.email, "Categories", "Add", { category });
         logger.info({ email: req.user.email, location: "Categories", procType: "Add", log: { category } });
 
         res.json(Response.successResponse({ success: true }))
@@ -59,7 +56,7 @@ router.post('/add', auth.authenticate(), async (req, res) => {
 
 })
 
-router.put('/update/:id', auth.authenticate(), async (req, res) => {
+router.put('/update/:id', async (req, res) => {
     let body = req.body;
     try {
         const { id } = req.params;
@@ -77,6 +74,7 @@ router.put('/update/:id', auth.authenticate(), async (req, res) => {
 
         await Categories.updateOne({ _id: id }, updates);
 
+        logger.info({ email: req.user.email, location: "Categories", procType: "Update", log: { id: id, updates } });
         res.json(Response.successResponse({ success: true }));
 
     } catch (error) {
@@ -87,7 +85,7 @@ router.put('/update/:id', auth.authenticate(), async (req, res) => {
 })
 
 
-router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
+router.delete('/delete/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const deleting = await Categories.findByIdAndDelete(id);
@@ -96,6 +94,7 @@ router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
             throw new CustomError(Enum.HTTP_CODES.NOT_FOUND, "Not Found", "The category you want to delete could not be found.");
         }
 
+        logger.info({ email: req.user.email, location: "Categories", procType: "Delete", log: { id: id } });
         res.json(Response.successResponse({
             success: true,
             message: 'Category has been successfully deleted'

@@ -9,7 +9,6 @@ const UserRoles = require('../db/models/UserRoles');
 const AuthService = require('../modules/auth/auth.service');
 
 const AuditLogs = require('../lib/auditLogs');
-const logger = require('../lib/logger/loggerClass');
 const bcrypt = require('bcrypt');
 const jwt = require('jwt-simple');
 const is = require('is-js');
@@ -19,9 +18,65 @@ const config = require('../config');
 const Enum = require('../config/Enum');
 const httpCodes = Enum.HTTP_CODES;
 const auth = require('../lib/auth');
+const logger = require('../lib/logger/loggerClass');
+
+//! Only at the beginning
+router.post('/first-register', async (req, res) => {
+  try {
+    const result = await AuthService.firstRegister(req.body);
+
+    res
+      .status(httpCodes.CREATED)
+      .json(Response.successResponse(result, httpCodes.CREATED));
+
+  } catch (error) {
+    const errorResponse = Response.errorResponse(error);
+    res.status(errorResponse.code).json(errorResponse);
+  }
+})
+
+router.post("/auth", async (req, res) => {
+  try {
+
+    let { email, password } = req.body;
+
+    Users.validateFieldsBeforeAuth(email, password);
+
+    let user = await Users.findOne({ email });
+
+    if (!user) throw new CustomError(Enum.HTTP_CODES.UNAUTHORIZED, "Validation Error", "Email or password is wrong");
+
+    if (!await user.validPassword(password)) throw new CustomError(Enum.HTTP_CODES.UNAUTHORIZED, "Validation Error", "Email or password is wrong");
+
+    let payload = {
+      id: user._id,
+      exp: parseInt(Date.now() / 1000) + config.JWT.EXPIRE_TIME
+    }
+
+    let token = jwt.encode(payload, config.JWT.SECRET);
+
+    let userData = {
+      _id: user._id,
+      first_name: user.first_name,
+      last_name: user.last_name
+    }
+
+    logger.info({ email: user.email, location: 'Users', procType: 'Auth', log: 'Login successful' });
+    res.json(Response.successResponse({ token, user: userData }));
+
+  } catch (err) {
+    logger.warn({ email: req.body?.email || 'unknown', location: 'Users', procType: 'Auth', log: err.message });
+    let errorResponse = Response.errorResponse(err);
+    res.status(errorResponse.code).json(errorResponse);
+  }
+})
+
+router.all('*', auth.authenticate(), (req, res, next) => {
+  next();
+})
 
 /* GET users listing. */
-router.get('/', auth.authenticate(), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const users = await Users.find();
 
@@ -35,8 +90,7 @@ router.get('/', auth.authenticate(), async (req, res) => {
   }
 });
 
-
-router.post('/add', auth.authenticate(), async (req, res) => {
+router.post('/add', async (req, res) => {
   try {
     const { body } = req;
 
@@ -63,7 +117,6 @@ router.post('/add', auth.authenticate(), async (req, res) => {
       phone_number: body.phone_number
     });
 
-    AuditLogs.info(req.user.email, 'Users', 'Add', { user });
     logger.info({ email: req.user.email, location: 'Users', procType: 'Add', log: { userId: user._id, email: user.email } });
 
     for (let i = 0; i < roles.length; i++) {
@@ -82,7 +135,7 @@ router.post('/add', auth.authenticate(), async (req, res) => {
   }
 })
 
-router.put('/update/:id', auth.authenticate(), async (req, res) => {
+router.put('/update/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body;
@@ -137,7 +190,7 @@ router.put('/update/:id', auth.authenticate(), async (req, res) => {
   }
 })
 
-router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
+router.delete('/delete/:id', async (req, res) => {
   try {
     const { id } = req.params
 
@@ -155,57 +208,6 @@ router.delete('/delete/:id', auth.authenticate(), async (req, res) => {
   } catch (error) {
     logger.error({ email: req.user?.email, location: 'Users', procType: 'Delete', log: error.message });
     const errorResponse = Response.errorResponse(error);
-    res.status(errorResponse.code).json(errorResponse);
-  }
-})
-
-//! Only at the beginning
-router.post('/first-register', async (req, res) => {
-  try {
-    const result = await AuthService.firstRegister(req.body);
-
-    res
-      .status(httpCodes.CREATED)
-      .json(Response.successResponse(result, httpCodes.CREATED));
-
-  } catch (error) {
-    const errorResponse = Response.errorResponse(error);
-    res.status(errorResponse.code).json(errorResponse);
-  }
-})
-
-router.post("/auth", async (req, res) => {
-  try {
-
-    let { email, password } = req.body;
-
-    Users.validateFieldsBeforeAuth(email, password);
-
-    let user = await Users.findOne({ email });
-
-    if (!user) throw new CustomError(Enum.HTTP_CODES.UNAUTHORIZED, "Validation Error", "Email or password is wrong");
-
-    if (!await user.validPassword(password)) throw new CustomError(Enum.HTTP_CODES.UNAUTHORIZED, "Validation Error", "Email or password is wrong");
-
-    let payload = {
-      id: user._id,
-      exp: parseInt(Date.now() / 1000) + config.JWT.EXPIRE_TIME
-    }
-
-    let token = jwt.encode(payload, config.JWT.SECRET);
-
-    let userData = {
-      _id: user._id,
-      first_name: user.first_name,
-      last_name: user.last_name
-    }
-
-    logger.info({ email: user.email, location: 'Users', procType: 'Auth', log: 'Login successful' });
-    res.json(Response.successResponse({ token, user: userData }));
-
-  } catch (err) {
-    logger.warn({ email: req.body?.email || 'unknown', location: 'Users', procType: 'Auth', log: err.message });
-    let errorResponse = Response.errorResponse(err);
     res.status(errorResponse.code).json(errorResponse);
   }
 })

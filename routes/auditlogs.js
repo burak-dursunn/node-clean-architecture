@@ -1,10 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const AuditLogs = require('../db/models/AuditLogs');
-const Enum = require('../config/Enum');
-const httpCodes = Enum.HTTP_CODES;
 const Response = require('../lib/Response')
-const CustomError = require('../lib/Error');
 const moment = require('moment');
 const auth = require('../lib/auth');
 
@@ -20,7 +17,7 @@ router.get('/', auth.authenticate(), async (req, res) => {
         }
 
         if (isNaN(limit) || limit > 500) {
-            limit = 500;
+            limit = 500; ""
         }
 
         if (body.begin_date && body.end_date) {
