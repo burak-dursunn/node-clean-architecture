@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
     try {
         let categories = await Categories.find({});
 
-        // logger.info({ email: req.user.email, location: "Categories", procType: "Get List", log: { categories } });
+        logger.info({ email: req.user.email, location: "Categories", procType: "Get List", log: { categories } });
         res.json(Response.successResponse(categories));
     } catch (error) {
         logger.error({ email: req.user?.email, location: "Categories", procType: "Get List", log: error })
