@@ -14,7 +14,7 @@ router.all('*', auth.authenticate(), (req, res, next) => {
 });
 
 // GET categories listing
-router.get('/', async (req, res) => {
+router.get('/', auth.checkPrivilege('category_view'), async (req, res) => {
     try {
         let categories = await Categories.find({});
 
@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
 })
 
 
-router.post('/add', async (req, res) => {
+router.post('/add', auth.checkPrivilege('category_add'), async (req, res) => {
     let body = req.body;
 
     try {
@@ -55,7 +55,7 @@ router.post('/add', async (req, res) => {
 
 })
 
-router.put('/update/:id', async (req, res) => {
+router.put('/update/:id', auth.checkPrivilege('category_update'), async (req, res) => {
     let body = req.body;
     try {
         const { id } = req.params;
@@ -84,7 +84,7 @@ router.put('/update/:id', async (req, res) => {
 })
 
 
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:id', auth.checkPrivilege('category_delete'), async (req, res) => {
     try {
         const { id } = req.params;
         const deleting = await Categories.findByIdAndDelete(id);
