@@ -76,11 +76,11 @@ router.all('*', auth.authenticate(), (req, res, next) => {
 })
 
 /* GET users listing. */
-router.get('/', async (req, res) => {
+router.get('/', auth.checkPrivilege('user_view'), async (req, res) => {
   try {
     const users = await Users.find();
 
-    logger.info({ email: req.user.email, location: 'Users', procType: 'Get List', log: `${users.length} users fetched` });
+    //logger.info({ email: req.user.email, location: 'Users', procType: 'Get List', log: `${users.length} users fetched` });
     res.json(Response.successResponse(users));
 
   } catch (error) {
@@ -90,7 +90,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/add', async (req, res) => {
+router.post('/add', auth.checkPrivilege('user_add'), async (req, res) => {
   try {
     const { body } = req;
 
@@ -126,7 +126,7 @@ router.post('/add', async (req, res) => {
       })
     }
 
-    res.status(httpCodes.CREATED).json(Response.successResponse({ success: true }, httpCodes.CREATED));
+    res.status(httpCodes.CREATED).json(Response.successResponse({ user }, httpCodes.CREATED));
 
   } catch (error) {
     logger.error({ email: req.user?.email, location: 'Users', procType: 'Add', log: error.message });
@@ -135,7 +135,7 @@ router.post('/add', async (req, res) => {
   }
 })
 
-router.put('/update/:id', async (req, res) => {
+router.put('/update/:id', auth.checkPrivilege('user_update'), async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body;
@@ -190,7 +190,7 @@ router.put('/update/:id', async (req, res) => {
   }
 })
 
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:id', auth.checkPrivilege('user_delete'), async (req, res) => {
   try {
     const { id } = req.params
 

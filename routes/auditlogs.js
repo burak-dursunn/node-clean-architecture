@@ -1,11 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const AuditLogs = require('../db/models/AuditLogs');
-const Response = require('../lib/Response')
+const Response = require('../lib/Response');
 const moment = require('moment');
 const auth = require('../lib/auth');
 
-router.get('/', auth.authenticate(), async (req, res) => {
+//! Authentication Middleware
+router.all('*', auth.authenticate(), (req, res, next) => {
+    next();
+});
+
+router.get('/', auth.checkPrivilege('auditlogs_view'), async (req, res) => {
     try {
         let query = {};
         let skip = parseInt(req.query.skip) || 0;
