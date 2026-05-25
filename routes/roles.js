@@ -12,6 +12,44 @@ const role_privileges = require('../config/role_privileges');
 const auth = require('../lib/auth');
 const logger = require('../lib/logger/loggerClass');
 
+/**
+ * withTransaction — environment-aware transaction helper.
+ *
+ * Production (replica set / Atlas): full ACID session transaction.
+ * Local / standalone MongoDB: falls back to direct execution without a
+ * session so development stays unblocked while production stays safe.
+ *
+ * @param {Function} fn  async (session | null) => void
+ */
+async function withTransaction(fn) {
+    let session = null;
+    try {
+        session = await mongoose.startSession();
+        await session.startTransaction();
+        await fn(session);
+        await session.commitTransaction();
+    } catch (err) {
+        // MongoServerError code 20 → "Transaction numbers are only allowed…"
+        // This means the server is a standalone node (no replica set).
+        if (err.code === 20 || err.codeName === 'IllegalOperation') {
+            if (session) {
+                try { await session.abortTransaction(); } catch (_) { /* ignore */ }
+                session.endSession();
+                session = null;
+            }
+            // Retry without a session — acceptable for local/dev environments
+            await fn(null);
+            return;
+        }
+        if (session) {
+            try { await session.abortTransaction(); } catch (_) { /* ignore */ }
+        }
+        throw err;
+    } finally {
+        if (session) session.endSession();
+    }
+}
+
 router.get('/role_privileges', async (req, res) => {
     res.json(role_privileges);
 })
@@ -21,7 +59,7 @@ router.all('*', auth.authenticate(), (req, res, next) => {
     next();
 });
 
-router.get('/', async (req, res) => {
+router.get('/', auth.checkPrivilege('role_view'), async (req, res) => {
     try {
         const roles = await Roles.find();
 
@@ -36,7 +74,7 @@ router.get('/', async (req, res) => {
 })
 
 
-router.post('/add', async (req, res) => {
+router.post('/add', auth.checkPrivilege('role_add'), async (req, res) => {
     const body = req.body;
     try {
         if (!body.role_name) throw new CustomError(httpCodes.BAD_REQUEST, "Validation Error!", '"role_name" area must be filled');
@@ -48,44 +86,24 @@ router.post('/add', async (req, res) => {
             role_name: body.role_name,
             is_active: body.is_active,
             created_by: req.user.id
-        })
-
-
-
-        // for (let i = 0; i<body.permissions.length; i++) {
-        //     let priv = new RolePrivileges({
-        //         role_id: role._id,
-        //         permission: body.permissions[i],
-        //         created_by: req.user?.id
-        //     })
-
-        //     await priv.save();
-        // }
+        });
 
         const privilegesData = body.permissions.map(permissionKey => ({
             role_id: role._id,
             permission: permissionKey,
             created_by: req.user.id
-        }))
+        }));
 
-        //! Transaction Usage
-        const session = await mongoose.startSession();
-        session.startTransaction();
-        try {
-            await role.save({ session });
-            await RolePrivileges.insertMany(privilegesData, { ordered: false, session });
-            await session.commitTransaction();
-        } catch (error) {
-            await session.abortTransaction();
-            throw error;
-        } finally {
-            session.endSession();
-        }
-
-
+        //! Transaction: full ACID on replica-set/Atlas, graceful fallback on standalone
+        await withTransaction(async (session) => {
+            await role.save(session ? { session } : {});
+            await RolePrivileges.insertMany(privilegesData, session
+                ? { ordered: false, session }
+                : { ordered: false });
+        });
 
         logger.info({ email: req.user.email, location: 'Roles', procType: 'Add', log: { roleName: body.role_name } });
-        res.json(Response.successResponse({ success: true }));
+        res.json(Response.successResponse({ role }));
 
     } catch (err) {
         logger.error({ email: req.user?.email, location: 'Roles', procType: 'Add', log: err.message });
@@ -94,7 +112,7 @@ router.post('/add', async (req, res) => {
     }
 })
 
-router.patch('/update/:id', async (req, res) => { // partial update
+router.patch('/update/:id', auth.checkPrivilege('role_update'), async (req, res) => { // partial update
     const body = req.body;
     const { id } = req.params;
     try {
@@ -164,7 +182,7 @@ router.patch('/update/:id', async (req, res) => { // partial update
     }
 })
 
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:id', auth.checkPrivilege('role_delete'), async (req, res) => {
     try {
         const { id } = req.params;
         if (!id) {
