@@ -48,8 +48,13 @@ router.post("/auth", async (req, res) => {
 
     if (!await user.validPassword(password)) throw new CustomError(Enum.HTTP_CODES.UNAUTHORIZED, "Validation Error", "Email or password is wrong");
 
+    // Yeni login → token_version'ı artır (önceki token anında geçersiz olur)
+    const newTokenVersion = (user.token_version ?? 0) + 1;
+    await Users.updateOne({ _id: user._id }, { $set: { token_version: newTokenVersion } });
+
     let payload = {
       id: user._id,
+      token_version: newTokenVersion,
       exp: parseInt(Date.now() / 1000) + config.JWT.EXPIRE_TIME
     }
 
@@ -74,6 +79,20 @@ router.post("/auth", async (req, res) => {
 router.all('*', auth.authenticate(), (req, res, next) => {
   next();
 })
+
+// Mevcut token'ı iptal et — token_version artırılır, bu session için verilen token geçersiz olur
+router.post('/logout', async (req, res) => {
+  try {
+    await Users.updateOne({ _id: req.user.id }, { $inc: { token_version: 1 } });
+    logger.info({ email: req.user.email, location: 'Users', procType: 'Logout', log: 'Logged out, token invalidated and token field has increased.' });
+    res.json(Response.successResponse({ message: 'Logged out successfully' }));
+
+  } catch (error) {
+    logger.error({ email: req.user?.email, location: 'Users', procType: 'Logout', log: error.message });
+    const errorResponse = Response.errorResponse(error);
+    res.status(errorResponse.code).json(errorResponse);
+  }
+});
 
 /* GET users listing. */
 router.get('/', auth.checkPrivilege('user_view'), async (req, res) => {

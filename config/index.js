@@ -6,5 +6,4 @@ module.exports = {
         "SECRET": process.env.SECRET,
         "EXPIRE_TIME": !isNaN(parseInt(process.env.TOKEN_EXPIRE_TIME)) ? parseInt(process.env.TOKEN_EXPIRE_TIME) : 86400
     }
-    
 }

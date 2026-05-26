@@ -10,7 +10,9 @@ const userSchema = new mongoose.Schema({
     is_active: { type: Boolean, default: true },
     first_name: String,
     last_name: String,
-    phone_number: String
+    phone_number: String,
+    // single-session architecture
+    token_version: { type: Number, default: 0 }
 }, {
     versionKey: false,
     //? timestamps: true,
