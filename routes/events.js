@@ -3,8 +3,6 @@ const router = express.Router();
 const { HTTP_CODES } = require('../config/Enum');
 const emitter = require('../lib/Emitter');
 
-emitter.addEmitter("notifications");
-
 router.get('/', (req, res) => {
     res.writeHead(HTTP_CODES.OK, {
         "Content-Type": "text/event-stream",
