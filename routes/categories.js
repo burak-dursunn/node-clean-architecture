@@ -8,6 +8,7 @@ const CustomError = require('../lib/Error');
 const AuditLogs = require('../lib/auditLogs');
 const logger = require('../lib/logger/loggerClass');
 const auth = require('../lib/auth');
+const emitter = require('../lib/Emitter');
 
 router.all('*', auth.authenticate(), (req, res, next) => {
     next();
@@ -43,8 +44,9 @@ router.post('/add', auth.checkPrivilege('category_add'), async (req, res) => {
 
         await category.save();
 
-        //! Logging
+        //* Logging
         logger.info({ email: req.user.email, location: "Categories", procType: "Add", log: { category } });
+        emitter.getEmitter('notifications').emit('messages', { messages: `${category.name} added to categories` });
 
         res.json(Response.successResponse({ success: true }))
     } catch (error) {
