@@ -46,7 +46,7 @@ router.post('/add', auth.checkPrivilege('category_add'), async (req, res) => {
 
         //* Logging
         logger.info({ email: req.user.email, location: "Categories", procType: "Add", log: { category } });
-        emitter.getEmitter('notifications').emit('messages', { messages: `${category.name} added to categories` });
+        emitter.getEmitter('notifications').emit('messages', { messages: category.name + " added to categories" });
 
         res.json(Response.successResponse({ success: true }))
     } catch (error) {
@@ -96,9 +96,10 @@ router.delete('/delete/:id', auth.checkPrivilege('category_delete'), async (req,
         }
 
         logger.info({ email: req.user.email, location: "Categories", procType: "Delete", log: { id: id } });
+        emitter.getEmitter('notifications').emit('messages', { messages: `${deleting.name} has been deleted successfully.` });
         res.json(Response.successResponse({
             success: true,
-            message: 'Category has been successfully deleted'
+            message: `${deleting.name} has been deleted successfully.`
         }))
 
 

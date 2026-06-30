@@ -11,7 +11,7 @@ router.get('/', (req, res) => {
     });
 
     const listener = (data) => {
-        res.write("data" + JSON.stringify(data) + "\n\n");
+        res.write("data: " + JSON.stringify(data) + "\n\n");
     };
 
     emitter.getEmitter("notifications").on("messages", listener);
